@@ -39,6 +39,6 @@ pixi run -e habitat python api.py explore experiments/<exp>
 | 1 (provided capture) | 191 | 0.074 m |
 | 2 (own capture) | 314 | 0.163 m |
 
-The capture data and Replica assets are not in this repo.
+The full write-up is in `report.pdf`. The capture data and Replica assets are not in this repo.
 
 The custom ICP bonus was not attempted.

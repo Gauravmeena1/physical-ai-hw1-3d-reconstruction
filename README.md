@@ -39,6 +39,24 @@ pixi run -e habitat python api.py explore experiments/<exp>
 | 1 (provided capture) | 191 | 0.074 m |
 | 2 (own capture) | 314 | 0.163 m |
 
+Red is the estimated path and black is ground truth.
+
+Floor 1, 0.074 m:
+
+![Floor 1 map](images/floor1.png)
+
+Floor 2, 0.163 m:
+
+![Floor 2 map](images/floor2.png)
+
+Floor 1 on the first pass, before the fixes (3.174 m). One pair registered about 180 degrees wrong and the paths split there:
+
+![Floor 1 first pass](images/floor1_first_pass.png)
+
+Measurements for the floor 2 capture. The drop in VoxelizedPointYield around frames 165-171 is a turn in front of a flat white wall, and most of the path error starts there:
+
+![Floor 2 plots](images/floor2_plots.png)
+
 The full write-up is in `report.pdf`. The capture data and Replica assets are not in this repo.
 
 The custom ICP bonus was not attempted.

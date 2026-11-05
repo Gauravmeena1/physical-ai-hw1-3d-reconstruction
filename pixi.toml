@@ -1,0 +1,49 @@
+# pixi workspace for the TAICA course. See docs/pixi.md for details.
+
+[workspace]
+name = "taica-course"
+version = "0.1.0"
+channels = ["conda-forge", "aihabitat"]
+platforms = ["linux-64", "osx-arm64"]
+
+[pypi-options]
+no-build-isolation = true
+
+[feature.habitat.dependencies]
+python = "3.9.*"
+cmake = "3.27.*"
+numpy = "1.26.4.*"
+habitat-sim = { version = "0.3.3.*", channel = "aihabitat" }
+withbullet = { version = "*", channel = "aihabitat" }
+gdown = "*"
+pygame = "*"
+pyyaml = "*"
+rdflib = "*"
+pytest = "*"
+openjdk = "21.*"
+
+# Open3D pip wheels dynamically load libgomp (Linux) / libomp (macOS).
+# Without these conda runtimes you get: OSError: libgomp.so.1: No such file.
+[feature.habitat.target.linux-64.dependencies]
+libgomp = "*"
+libgcc-ng = "*"
+libstdcxx-ng = "*"
+
+[feature.habitat.target.osx-arm64.dependencies]
+llvm-openmp = "*"
+
+[feature.habitat.pypi-dependencies]
+habitat-lab = { path = "dependencies/habitat-lab/habitat-lab", editable = true }
+simulator = { path = "packages/simulator", editable = true }
+opencv-python = "==4.8.0.76"
+open3d = "*"
+panel = "==1.4.5"
+bokeh = "==3.4.3"
+
+[feature.habitat.tasks]
+smoke = { cmd = "python -c \"import habitat_sim, habitat; print('habitat-sim', habitat_sim.__version__); print('habitat-lab', habitat.__version__); print('bullet build:', habitat_sim.built_with_bullet)\"" }
+fetch-replica = { cmd = "mkdir -p replica_v1 && gdown https://drive.google.com/uc?id=1zHA2AYRtJOmlRaHNuXOvC_OaVxHe56M4 -O replica_v1/apartment_0.zip && unzip -o replica_v1/apartment_0.zip -d replica_v1 && rm replica_v1/apartment_0.zip" }
+test = { cmd = "pytest tests/test_pipeline_workflow.py tests/test_new_factors.py tests/test_explore_dashboard.py -v" }   # pipeline factor workflow regression; simulator suite: pytest packages/simulator/tests/
+
+[environments]
+habitat = { features = ["habitat"], solve-group = "habitat" }

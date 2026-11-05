@@ -1,0 +1,87 @@
+# =============================================================================
+# HW1 config — second floor. THE single hw1 config.
+# Consumed by load.py (interactive collection).
+# =============================================================================
+
+scene:
+  path: "replica_v1/apartment_0/habitat/mesh_semantic.ply"
+
+agent:
+  start_position: [0.0, 1.0, -1.0]
+  move_forward: 0.2
+  move_backward: 0.2
+  turn_left: 6.0
+  turn_right: 6.0
+
+camera:
+  width: 512
+  height: 512
+  hfov: 90.0
+  position: [0.0, 1.5, 0.0]
+  orientation: [0.0, 0.0, 0.0]
+
+birdseye:
+  width: 512
+  height: 512
+  hfov: 90.0
+  position: [0.0, 2.5, 0.0]
+  orientation: [-1.5708, 0.0, 0.0]
+
+marker:
+  enabled: false
+  size: [0.4, 0.05, 0.4]
+  height_offset: 0.03
+  forward_offset: 1.0
+
+lighting:
+  brightness: 1.0
+  contrast: 1.0
+  gamma: 1.0
+  ambient_rgb: [1.0, 1.0, 1.0]
+
+depth:
+  enabled: true
+  stuck: false
+  noise_std: 0.005
+  dropout_prob: 0.0
+  min_range: 0.0
+  max_range: 10.0
+  quantization: 0.0
+  redwood: false
+  redwood_multiplier: 1.0
+  light_nominal: 1.0
+  light_noise_gain: 4.0
+  light_dropout_gain: 0.3
+  light_range_gain: 0.4
+
+uncertainties:
+  enabled: true
+  mode: spatial
+  seed: 20
+
+  zones:
+    - name: benign
+      center: [3.77, 3.10]
+      radius: 1.5
+      flicker: { amplitude: 0.30, frequency: 0.73 }
+    - name: moderate
+      center: [2.22, 6.22]
+      radius: 1.5
+      flicker: { amplitude: 0.60, frequency: 1.17 }
+    - name: severe
+      center: [3.05, 8.01]
+      radius: 1.5
+      flicker: { amplitude: 0.95, frequency: 1.91 }
+
+display:
+  scale: 1.0
+  show_rgb: true
+  show_depth: true
+  show_birdseye: true
+
+output:
+  root: "eval/_data/second_floor/" 
+  save_rgb: true
+  save_depth: true
+  save_semantic: false
+  clear_existing: true

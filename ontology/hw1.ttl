@@ -1,0 +1,485 @@
+# HW1 RGB-D capture quality ontology -- TBox
+#
+# This file is the ONLY ontology file in the project. It is hand-edited; every
+# other .ttl in the tree is machine generated or student-authored
+# (experiments/<expname>/<expname>.ttl written by the STUDENT above the machine
+# marker and extended by the first `reconstruct.py --experiment` pass below it).
+#
+# This file is the TBox: every IRI, class name, predicate name and parameter
+# name used by the tooling is declared here.
+#
+# Design rules -- read these first:
+#
+#  1. SINGLE GRAPH. There are no named graphs: disambiguation is carried by
+#     IRIs. Batch, Frame, and image IRIs are shared structure; factor occurrences,
+#     runs, and settings are experiment-scoped.
+#
+#  2. FACTOR RESULTS USE ONE OCCURRENCE SHAPE. Each Factor occurrence stores
+#     generic value and evaluationState properties. Reusable definitions
+#     map to observable property metadata for code dispatch. Run outcomes
+#     have their own direct value properties.
+#
+#  3. PARAMETERS share one vocabulary: one hw1:Parameter class
+#     and one hw1:FactorSetting node shape. paramRole identifies each setting's
+#     meaning in experiment reports.
+#
+#  A. AN EXPERIMENT IS A STUDENT-AUTHORED DECLARATION, not a machine-generated
+#     complete measurement pass. The student writes Turtle: which batch
+#     (hw1:batchFile + hw1:onBatch), the capture batch
+#     and any reconstruction setting overrides (hw1:hasFactorSetting).
+#     `reconstruct.py` measures all pipeline-derived factors automatically
+#     and appends values BELOW a marker line.
+#
+#  B. PIPELINE FACTORS ARE AUTOMATIC. Every experiment records all pipeline-
+#     derived factors, plus the always-evaluated run outcomes. A missing expected
+#     measurement is a bug, not a state.
+#
+#  C. OCCURRENCES LINK DIRECTLY TO EVIDENCE. Single-image occurrences point to
+#     one depth image; pair occurrences point to an ordered adjacent image pair.
+#
+#  D. WRITE-ONCE, SEALED. An experiment file is assessed exactly once; re-running
+#     `reconstruct.py --experiment` on a file that already has the marker is a hard error, and any
+#     tuning is a brand-new file under a brand-new name. hw1:declarationDigest is
+#     the tamper seal that makes that enforceable. experiments/ is therefore
+#     an append-only lab notebook. An experiment is identified by its NAME
+#     (file stem = IRI tail).
+#
+# Factor occurrence tables, per-factor summaries and cross-experiment
+# comparisons are computed in code by `api.py explore`. The hw1:overProperty
+# wiring below lets `explore` resolve factors generically, so adding a menu
+# factor still needs no per-factor branch anywhere.
+
+@prefix hw1:     <http://taica.course/hw1/ontology#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix schema:  <https://schema.org/> .
+@prefix qudt:    <http://qudt.org/schema/qudt/> .
+@prefix unit:    <http://qudt.org/vocab/unit/> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix vann:    <http://purl.org/vocab/vann/> .
+
+# `prov:` is used for exactly one term, prov:wasDerivedFrom, asserted BETWEEN
+# BATCHES -- there are no derived experiments.
+
+<http://taica.course/hw1/ontology> a owl:Ontology ;
+    dcterms:title "HW1 RGB-D capture quality ontology"@en ;
+    owl:versionIRI <http://taica.course/hw1/ontology/7.0.0> ;
+    vann:preferredNamespacePrefix "hw1" ;
+    vann:preferredNamespaceUri "http://taica.course/hw1/ontology#" .
+
+
+# =============================================================================
+# 1. The model at a glance
+# =============================================================================
+#
+#   Batch                                  structure; changes only when pixels change
+#   `-- hw1:hasFrame --> Frame
+#       |-- hw1:frameIndex
+#       |-- hw1:hasRGBImage   --> RGBImage    (schema:contentUrl, nothing else)
+#       `-- hw1:hasDepthImage --> DepthImage  (schema:contentUrl, nothing else)
+#
+#   Experiment                             one declared assessment; written once
+#   |                                      DECLARED BY THE STUDENT:
+#   |-- hw1:batchFile          --> "path/to/capture-dir" how the CLI reaches pixels
+#   |-- hw1:onBatch            --> Batch                 must match that directory's batch
+#   |-- hw1:hasFactorSetting   --> FactorSetting      role ReconstructionSetting
+#   |                                      WRITTEN BY THE MACHINE, BELOW THE MARKER:
+#   |-- hw1:declarationDigest  --> "<64 hex>"            seal over the student section
+#   |-- hw1:hasFactorSetting   --> FactorSetting      the defaulted remainder
+#   |-- hw1:hasRun             --> ReconstructionRun  written by reconstruct.py
+#   `-- Factor occurrences link back with inExperiment
+#
+# Each experiment-scoped Factor occurrence points to the definition and image(s)
+# it measures, keeping results distinct when the same batch is assessed again.
+
+
+# =============================================================================
+# 2. Structure -- derived from the capture directory (rgb/ + depth/)
+# =============================================================================
+# Structure only: no observables, no pairs. `declare`, the first reconstruction
+# pass, and `explore` read the capture directory directly.
+
+hw1:Batch      a rdfs:Class ;
+    rdfs:comment "One capture directory: the RGB-D frames produced by one drive of the agent, possibly with corruption already baked into the pixels."@en .
+hw1:Frame      a rdfs:Class ;
+    rdfs:comment "One time step: an RGB image and a depth image sharing a file stem."@en .
+hw1:RGBImage   a rdfs:Class ; rdfs:subClassOf schema:ImageObject .
+hw1:DepthImage a rdfs:Class ; rdfs:subClassOf schema:ImageObject .
+
+hw1:hasFrame      a rdf:Property ; rdfs:domain hw1:Batch ; rdfs:range hw1:Frame .
+hw1:hasRGBImage   a rdf:Property ; rdfs:domain hw1:Frame ; rdfs:range hw1:RGBImage .
+hw1:hasDepthImage a rdf:Property ; rdfs:domain hw1:Frame ; rdfs:range hw1:DepthImage .
+
+hw1:batchName a rdf:Property ; rdfs:domain hw1:Batch ; rdfs:range xsd:string ;
+    rdfs:comment "Floor-qualified capture directory name, e.g. \"floor1_baseline\"."@en .
+hw1:batchPath a rdf:Property ; rdfs:domain hw1:Batch ; rdfs:range xsd:string .
+hw1:floor     a rdf:Property ; rdfs:domain hw1:Batch ; rdfs:range xsd:integer .
+
+# Deliberately NO rdfs:domain: the integer index belongs to a Frame and is
+# not duplicated onto Factor occurrences.
+hw1:frameIndex a rdf:Property ; rdfs:range xsd:integer ;
+    rdfs:comment "Integer file stem, decimal and unpadded. Carried by hw1:Frame. ORDER BY this, never by IRI string -- unpadded stems break lexicographic order."@en .
+
+
+# =============================================================================
+# 3. Closed term vocabularies
+# =============================================================================
+# Small closed enumerations. Each is a class with a fixed set of named
+# individuals, so code can read the term instead of parsing prose out of a
+# comment. These vocabularies are skos:Concept subclasses to say "these are
+# closed vocabularies of terms", not classes of measurable things.
+
+
+hw1:SelectionMode a rdfs:Class ; rdfs:subClassOf skos:Concept ;
+    rdfs:comment "Which frames a ReconstructionRun consumed. Two runs of one experiment differ only in this and in their IRI, so baseline and selected cannot overwrite each other."@en .
+hw1:FullBatch    a hw1:SelectionMode ; skos:prefLabel "full batch"@en ;
+    rdfs:comment "Every frame of the batch, in order. Run IRI mode `baseline`."@en .
+hw1:GoodSegments a hw1:SelectionMode ; skos:prefLabel "selected frames"@en ;
+    rdfs:comment "Frames returned by a reconstruction selection query. The current implementation flattens the selected list and registers each frame to the previous selected frame, including across gaps. Run IRI mode `selected`; these runs also assert hw1:usedFrame."@en .
+
+hw1:SettingRole a rdfs:Class ; rdfs:subClassOf skos:Concept ;
+    rdfs:comment "What kind of thing a setting configures. `api.py explore` displays the role with the setting; it does not infer that a setting caused a run outcome."@en .
+hw1:ReconstructionSetting a hw1:SettingRole ; skos:prefLabel "reconstruction setting"@en ;
+    rdfs:comment "A setting that configures the reconstruction implementation, such as the ICP backend."@en .
+
+
+# =============================================================================
+# 4. Experiment layer -- declared by the student, then extended by
+#    `reconstruct.py` (measuring pass)
+# =============================================================================
+# THE DECLARATION WORKFLOW, in the order the file is written:
+#
+#   1. The student writes experiments/<expname>/<expname>.ttl by hand or with
+#      `api.py declare` (the default command also creates `plots/` and `queries/`).
+#      Above the marker line there may be NOTHING but the Experiment node's own triples
+#      (rdf:type, rdfs:label, hw1:batchFile (capture dir), hw1:onBatch,
+#      hw1:hasFactorSetting) and the hw1:FactorSetting nodes they point at. A
+#      factor occurrence, observable value, or run above the marker is a
+#      hard error: VALUES ARE MEASURED, NEVER DECLARED. The Experiment IRI's
+#      tail must equal the file stem -- the name IS the identity.
+#
+#   2. The first-pass measuring run `reconstruct.py --experiment DECLARATION`
+#      validates that declaration, follows hw1:batchFile to the capture directory,
+#      measures all pipeline factors inline during reconstruction, and
+#      APPENDS -- once, ever -- the marker line
+#
+#        # ============ MACHINE SECTION (regenerated by api.py -- do not edit) ============
+#
+#      followed by the machine section: the seal, defaulted FactorSettings,
+#      measured pipeline-factor occurrences, and
+#      the baseline run node. Subjects are re-opened across the marker so the
+#      whole file parses as one graph and each section also parses alone.
+#
+#   3. WRITE-ONCE. An unsealed declaration is measured and sealed once. On an
+#      already-sealed file, subsequent runs (baseline or SPARQL-selected) perform
+#      reconstruction and only append their run node triples.
+#
+#   4. SEALED. hw1:declarationDigest is a sha256 over the student section's exact
+#      bytes. read_experiment and write_run recompute and verify it before doing
+#      anything; a mismatch means the declaration was edited after assessment,
+#      which makes it a different experiment that needs a different file.
+# The consequence, and the pedagogical point: experiments/ is an append-only
+# LAB NOTEBOOK. Declaration and verdicts in one file are always mutually
+# consistent, and the report is the series of declarations and what they returned.
+#
+# The setting vector contains reconstruction configuration.
+
+hw1:Experiment a rdfs:Class ;
+    rdfs:comment "One declared assessment of one batch with a setting vector for automatic pipeline-factor measurements. DoE calls the vector a treatment combination. Exactly one hw1:Experiment subject per experiment file -- zero or several is an error in api.read_declaration / api.read_experiment, not a guess. Identified by NAME: the IRI tail equals the declaration file's stem. Assessed exactly once (write-once, above); every tuning is a new file."@en .
+
+hw1:schemaVersion a owl:DatatypeProperty ; rdfs:domain hw1:Experiment ; rdfs:range xsd:string ;
+    rdfs:comment "Schema version recorded by the declaration."@en .
+
+hw1:ReconstructionRun a rdfs:Class ;
+    rdfs:comment "One execution of reconstruct.py over one experiment and one hw1:SelectionMode. It carries direct reconstruction outcome values."@en .
+hw1:onBatch a rdf:Property ; rdfs:domain hw1:Experiment ; rdfs:range hw1:Batch ;
+    rdfs:comment "Which batch was assessed, as an IRI. Declared by the student and cross-checked during the first reconstruction pass against the capture directory named by hw1:batchFile. A mismatch is a hard error."@en .
+
+hw1:batchFile a rdf:Property ; rdfs:domain hw1:Experiment ; rdfs:range xsd:string ;
+    rdfs:comment "Path to the capture directory (rgb/ + depth/), resolved against the current working directory when relative. This is how a declaration reaches pixels -- declaration -> batchFile -> rgb/ + depth/. The directory's floor-qualified name must equal the declared hw1:onBatch. A path and not an IRI on purpose: an IRI says which batch, a path says where to read it."@en .
+
+hw1:declarationDigest a rdf:Property ; rdfs:domain hw1:Experiment ; rdfs:range xsd:string ;
+    rdfs:comment "The write-once tamper seal. The sha256 hex digest of the file's bytes from offset 0 up to the start of the MACHINE SECTION marker line -- i.e. over the student-authored declaration exactly as written, whitespace and comments included. Stamped by the first `reconstruct.py --experiment` pass below the marker; recomputed and verified by read_experiment and write_run before either does anything else, with a mismatch a hard error. NOT an identity: an experiment is identified by its name. This digest answers only one question -- has the declaration changed since it was assessed -- and if it has, the answer is a new file, not a re-assessment."@en .
+
+hw1:hasRun a rdf:Property ; rdfs:domain hw1:Experiment ; rdfs:range hw1:ReconstructionRun ;
+    rdfs:comment "Links an experiment to its reconstruction executions and their direct outcome records."@en .
+hw1:selectionMode a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range hw1:SelectionMode .
+hw1:usedFrame a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range hw1:Frame ;
+    rdfs:comment "Asserted by selected runs only. Reconstruction provenance lives in the graph, so no CSV sidecar is needed to answer \"which frames went into this number\"."@en .
+hw1:runFrameCount a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range xsd:integer ;
+    rdfs:comment "How many frames the run consumed. Redundant with COUNT(?usedFrame) for a selected run, but a full-batch run asserts no usedFrame at all, so the count has to be stated."@en .
+hw1:diagnosticFile a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range xsd:string ;
+    rdfs:comment "Relative path to the versioned per-link diagnostic JSON sidecar produced by the same reconstruction call."@en .
+
+
+# =============================================================================
+# 5. Factor dispatch metadata and direct run outcomes
+# =============================================================================
+# Pipeline occurrences store results through generic hw1:value.
+# The typed properties below are metadata keys used by QualityFactor definitions
+# for dispatch; they are not asserted on occurrence instances. ReconstructionRun
+# outcomes use direct named value properties.
+#
+# Every value predicate is xsd:double, including counts-as-fractions, because
+# xsd:decimal cannot carry INF. INF serializes as
+# "INF"^^xsd:double, NaN as "NaN"^^xsd:double.
+
+# ---- single-image observables (domain hw1:SingleImageFactor) ----
+# First-order pipeline reads: direct point counts, no derived statistics.
+
+
+
+hw1:voxelPointYield a rdf:Property ; rdfs:domain hw1:SingleImageFactor ; rdfs:range xsd:double ;
+    rdfs:label "voxelized point yield"@en ;
+    rdfs:comment "Count of points surviving pipeline voxel downsampling (5 cm default), as xsd:double so INF serializes."@en .
+
+hw1:rawPointCount a rdf:Property ; rdfs:domain hw1:SingleImageFactor ; rdfs:range xsd:double ;
+    rdfs:label "raw valid depth returns"@en ;
+    rdfs:comment "Count of valid (depth > 0) back-projected points before pipeline voxel downsampling, as xsd:double so INF serializes."@en .
+# ---- pair observables (domain hw1:DepthPairFactor) ----
+
+
+
+hw1:coarseFitness a rdf:Property ; rdfs:domain hw1:DepthPairFactor ; rdfs:range xsd:double ;
+    rdfs:label "coarse RANSAC fitness"@en ;
+    rdfs:comment "Fractional correspondence inlier support of the RANSAC coarse alignment within the 1.5 x voxel distance gate."@en .
+
+hw1:coarseRmse a rdf:Property ; rdfs:domain hw1:DepthPairFactor ; rdfs:range xsd:double ;
+    rdfs:label "coarse RANSAC RMSE"@en ; qudt:unit unit:M ;
+    rdfs:comment "Root mean square error of the RANSAC coarse alignment inlier correspondences within the 1.5 x voxel distance gate."@en .
+
+hw1:coarseCorrespondences a rdf:Property ; rdfs:domain hw1:DepthPairFactor ; rdfs:range xsd:double ;
+    rdfs:label "coarse RANSAC correspondence count"@en ;
+    rdfs:comment "Number of correspondences in the RANSAC result set, as xsd:double so it serializes."@en .
+
+hw1:icpFitness a rdf:Property ; rdfs:domain hw1:DepthPairFactor ; rdfs:range xsd:double ;
+    rdfs:label "ICP inlier fitness"@en ;
+    rdfs:comment "Fractional correspondence inlier support within the distance gate after ICP convergence."@en .
+
+hw1:icpRmse a rdf:Property ; rdfs:domain hw1:DepthPairFactor ; rdfs:range xsd:double ;
+    rdfs:label "ICP inlier RMSE"@en ; qudt:unit unit:M ;
+    rdfs:comment "Root mean square error of inlier correspondences within the distance gate after ICP convergence."@en .
+
+hw1:icpCorrespondences a rdf:Property ; rdfs:domain hw1:DepthPairFactor ; rdfs:range xsd:double ;
+    rdfs:label "ICP correspondence count"@en ;
+    rdfs:comment "Number of correspondences in the converged ICP result set, as xsd:double so it serializes."@en .
+# ---- run observables (domain hw1:ReconstructionRun) ----
+# These outcomes are recorded directly on every run.
+
+hw1:mapMeanL2 a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range xsd:double ;
+    rdfs:label "trajectory mean L2 error"@en ;
+    qudt:unit unit:M ;
+    rdfs:comment "Mean L2 distance in metres between predicted and ground-truth camera centres after the fixed frame reconciliation in utils.mean_l2."@en .
+
+# Mechanism evidence for the selected run.
+# These are observations about how the consumer handled the
+# selection, not quality factors.
+hw1:gatedSteps a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range xsd:integer ;
+    rdfs:label "gated ICP steps"@en ;
+    rdfs:comment "Number of proposed relative transforms rejected by the ICP plausibility gate during this run."@en .
+hw1:spliceCount a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range xsd:integer ;
+    rdfs:label "selection splices"@en ;
+    rdfs:comment "GoodSegments only: number of boundaries between maximal selected segments concatenated for the diagnostic selected run."@en .
+hw1:maxGapLength a rdf:Property ; rdfs:domain hw1:ReconstructionRun ; rdfs:range xsd:integer ;
+    rdfs:label "maximum splice gap"@en ;
+    rdfs:comment "GoodSegments only: largest number of omitted frame indices at a segment boundary."@en .
+
+# =============================================================================
+# 6. Quality factors
+# =============================================================================
+# A QualityFactor is the reusable definition of what a measured value means.
+# overProperty identifies dispatch metadata. Occurrence data
+# itself uses generic value.
+#
+# The eight pipeline factors are measured automatically for every experiment.
+# Run outcomes are recorded directly on ReconstructionRun and are not factors.
+
+hw1:RawPointCount a hw1:QualityFactor ;
+    rdfs:label "raw valid depth returns"@en ;
+    hw1:overProperty hw1:rawPointCount ;
+    hw1:appliesTo hw1:SingleImageFactor .
+
+hw1:VoxelizedPointYield a hw1:QualityFactor ;
+    rdfs:label "voxelized point yield"@en ;
+    hw1:overProperty hw1:voxelPointYield ;
+    hw1:appliesTo hw1:SingleImageFactor .
+
+# ---- pair factors ----
+
+hw1:CoarseRANSACFitness a hw1:QualityFactor ;
+    rdfs:label "coarse RANSAC fitness"@en ;
+    hw1:overProperty hw1:coarseFitness ;
+    hw1:appliesTo hw1:DepthPairFactor .
+
+hw1:CoarseRANSACRMSE a hw1:QualityFactor ;
+    rdfs:label "coarse RANSAC RMSE"@en ;
+    hw1:overProperty hw1:coarseRmse ;
+    hw1:appliesTo hw1:DepthPairFactor .
+
+hw1:CoarseRANSACCorrespondences a hw1:QualityFactor ;
+    rdfs:label "coarse RANSAC correspondence count"@en ;
+    hw1:overProperty hw1:coarseCorrespondences ;
+    hw1:appliesTo hw1:DepthPairFactor .
+
+hw1:ICPInlierFitness a hw1:QualityFactor ;
+    rdfs:label "ICP inlier fitness"@en ;
+    hw1:overProperty hw1:icpFitness ;
+    hw1:appliesTo hw1:DepthPairFactor .
+
+hw1:ICPInlierRMSE a hw1:QualityFactor ;
+    rdfs:label "ICP inlier RMSE"@en ;
+    hw1:overProperty hw1:icpRmse ;
+    hw1:appliesTo hw1:DepthPairFactor .
+
+hw1:ICPInlierCorrespondences a hw1:QualityFactor ;
+    rdfs:label "ICP correspondence count"@en ;
+    hw1:overProperty hw1:icpCorrespondences ;
+    hw1:appliesTo hw1:DepthPairFactor .
+
+# =============================================================================
+# 7. Settings -- one parameter at one value, for one batch or one experiment
+# =============================================================================
+# Each setting is an explicit node so its parameter, role, primary factor, and
+# value stay together for validation and readable reporting. The setting cannot be a
+# plain numeric triple on the Experiment because a setting must remain linked
+# the parameter's ROLE off the same node as its value, and because two settings
+# of the same parameter at different values must be distinguishable nodes rather
+# than two contradictory triples on one subject.
+#
+# A experiment's settings come from TWO PLACES and the file itself records
+# which: the student writes overrides above the marker, and
+# `reconstruct.py --experiment` records every remaining REQUIRED parameter from its
+# hw1:paramDefault below it. Given-versus-defaulted is therefore recoverable from
+# which side of the marker a setting sits on -- no flag on the node says it, and
+# none should, because a flag could disagree with the file.
+#
+# STUDENT SETTINGS MAY BE BLANK NODES. The declaration writes
+# them as `[ a hw1:FactorSetting ; ... ]`, and only machine-minted settings must
+# use the IRI scheme. That is legal precisely because nothing
+# ever re-opens a setting node to add triples to it -- see hw1:settingForFactor.
+
+hw1:FactorSetting a rdfs:Class ;
+    rdfs:comment "One parameter at one value, in one context. Written by the student (blank node or any IRI, above the marker) or minted by the first `reconstruct.py --experiment` pass from the parameter's default (scheme IRI, below it)."@en .
+
+hw1:settingParameter a rdf:Property ; rdfs:domain hw1:FactorSetting ; rdfs:range hw1:Parameter ;
+    rdfs:comment "Which declared parameter this sets. The object is a hw1:Parameter INDIVIDUAL, not an rdf:Property."@en .
+hw1:settingRole a rdf:Property ; rdfs:domain hw1:FactorSetting ; rdfs:range hw1:SettingRole ;
+    rdfs:comment "Copied from the parameter's hw1:paramRole when the setting is written, and validated against it on a student-authored setting: a role that disagrees with the parameter's is a hard error, not a local override. The role travels with the value for display and interpretation."@en .
+hw1:settingForFactor a rdf:Property ; rdfs:domain hw1:FactorSetting ; rdfs:range rdfs:Resource ;
+    rdfs:comment "SINGLE-VALUED: the parameter's hw1:paramPrimaryFactor, and nothing else. On a student-authored setting it must equal that primary factor or the declaration is an error. It is also the <factor> segment of a machine-minted setting's IRI. Readers traverse the TBox instead of reading a copied blame set: setting -> hw1:settingParameter -> hw1:paramPrimaryFactor / hw1:paramAffectsFactor. Same reach, one source of truth, and traversal is what makes blank-node student settings legal."@en .
+hw1:settingValue a rdf:Property ; rdfs:domain hw1:FactorSetting ;
+    rdfs:comment "The level. Deliberately NO rdfs:range: it is xsd:double, xsd:integer or xsd:string according to the parameter's hw1:paramValueKind, and a student-authored literal is validated against that kind. Read the kind, never guess the type from the text of the value -- that is what makes icpBackend an ordinary parameter instead of a special case."@en .
+
+hw1:hasFactorSetting a rdf:Property ; rdfs:domain hw1:Experiment ; rdfs:range hw1:FactorSetting ;
+    rdfs:comment "Reconstruction settings hang off the EXPERIMENT, because they describe this assessment. Asserted from BOTH sides of the machine marker -- the student's overrides above it, the defaulted remainder below -- which is legal because re-opening a subject across the marker is ordinary Turtle. The resulting vector contains every reconstruction parameter exactly once."@en .
+
+
+# =============================================================================
+# 8. Parameter declarations
+# =============================================================================
+# This list is CLOSED. A parameter named by a declaration's hw1:settingParameter
+# that is not declared here is a hard error at parse time with the declared
+# list printed, never a silent extra -- otherwise a typo becomes a new parameter
+# and produces a quietly different experiment that looks fine.
+#
+# Parameter names are globally unique, so settings can be keyed by parameter.
+#
+# WHICH of these an experiment must record is the completeness rule:
+# the reconstruction configuration.
+
+hw1:Parameter a rdfs:Class ;
+    rdfs:comment "A settable input. DoE calls this a FACTOR and its value a LEVEL; this vocabulary calls it a Parameter because hw1:QualityFactor already took the word for measured outputs."@en .
+
+hw1:paramRole a rdf:Property ; rdfs:domain hw1:Parameter ; rdfs:range hw1:SettingRole ;
+    rdfs:comment "The role of this parameter setting and its interpretation in experiment reports."@en .
+hw1:paramValueKind a rdf:Property ; rdfs:domain hw1:Parameter ; rdfs:range xsd:string ;
+    rdfs:comment "\"double\" | \"integer\" | \"string\". Drives the datatype of hw1:settingValue -- and therefore the validation of a student-authored setting literal. Declared data, not inferred from the text."@en .
+hw1:paramPrimaryFactor a rdf:Property ; rdfs:domain hw1:Parameter ; rdfs:range rdfs:Resource ;
+    rdfs:comment "Single-valued and MANDATORY. The factor this parameter is most directly about. It is the <factor> segment of a machine-minted setting IRI and the only legal value of a setting's hw1:settingForFactor, so it must never be ambiguous."@en .
+hw1:paramAffectsFactor a rdf:Property ; rdfs:domain hw1:Parameter ; rdfs:range hw1:QualityFactor ;
+    rdfs:comment "0..n further factors whose values may change when this parameter changes. Never appears in an IRI. This relationship is ontology metadata for analysis; `api.py explore` does not currently infer causal attribution from it."@en .
+hw1:paramDefault a rdf:Property ; rdfs:domain hw1:Parameter ;
+    rdfs:comment "Level recorded below the machine marker when a required parameter is not given in the declaration. Deliberately NO rdfs:range, for the same reason as hw1:settingValue: the datatype follows hw1:paramValueKind (\"double\" -> xsd:double, \"integer\" -> xsd:integer, \"string\" -> xsd:string) and is always written out explicitly, never left as a bare Turtle literal. ABSENCE IS MEANINGFUL for optional parameters."@en .
+
+# ---- Reconstruction configuration
+
+# icpBackend is the reason hw1:paramValueKind exists: a categorical level that
+# is an ordinary parameter whose kind happens to be "string".
+hw1:icpBackend a hw1:Parameter ;
+    rdfs:label "icp backend"@en ;
+    hw1:paramRole          hw1:ReconstructionSetting ;
+    hw1:paramValueKind     "string" ;
+    hw1:paramPrimaryFactor hw1:ReconstructionRun ;
+    hw1:paramDefault       "open3d"^^xsd:string ;
+    rdfs:comment "Which registration implementation reconstruct.py runs; exactly two legal values, \"open3d\" and \"my_icp\". The recorded setting is authoritative -- a disagreeing --version is a hard error, not a silent override, because the experiment file already states which backend its run values belong to and a silent switch would put two backends' numbers under one name."@en .
+
+
+# =============================================================================
+# 9. Semantic measurement model (the active contract)
+# =============================================================================
+# Each measurement is an explicit, experiment-scoped Factor occurrence.
+# Completeness is checked by the application; cardinality declarations below
+# document the shape and do not replace validation.
+
+hw1:Factor a owl:Class ;
+    rdfs:comment "One experiment-scoped occurrence of one hw1:QualityFactor definition. A Factor owns its value and evaluation state; shared Frame and image nodes never carry experiment-specific measurements."@en .
+hw1:SingleImageFactor a owl:Class ;
+    rdfs:subClassOf hw1:Factor ;
+    owl:disjointWith hw1:DepthPairFactor ;
+    rdfs:comment "A Factor measured on one DepthImage. It has exactly one hasCurrentFrame and no hasPrevious."@en .
+hw1:DepthPairFactor a owl:Class ;
+    rdfs:subClassOf hw1:Factor ;
+    owl:disjointWith hw1:SingleImageFactor ;
+    rdfs:comment "A Factor measured on two distinct, adjacent DepthImages. hasPrevious is the earlier image and hasCurrentFrame is the later image."@en .
+hw1:inExperiment a owl:ObjectProperty ; rdfs:domain hw1:Factor ; rdfs:range hw1:Experiment ;
+    rdfs:comment "Experiment owning this measurement occurrence."@en .
+hw1:hasDefinition a owl:ObjectProperty ; rdfs:domain hw1:Factor ; rdfs:range hw1:QualityFactor ;
+    rdfs:comment "Reusable QualityFactor definition measured by this occurrence. Distinct from the occurrence itself."@en .
+hw1:hasCurrentFrame a owl:ObjectProperty ; rdfs:domain hw1:Factor ; rdfs:range schema:ImageObject ;
+    rdfs:comment "The current image (not a Frame). For pair factors it is the later DepthImage."@en .
+hw1:hasPrevious a owl:ObjectProperty ; rdfs:domain hw1:DepthPairFactor ; rdfs:range hw1:DepthImage ;
+    rdfs:comment "The earlier DepthImage in a pair; forbidden on SingleImageFactor."@en .
+hw1:value a owl:DatatypeProperty ; rdfs:domain hw1:Factor ; rdfs:range xsd:double ;
+    rdfs:comment "Measured numeric value. Required exactly once in Measured state."@en .
+hw1:evaluationState a owl:ObjectProperty ; rdfs:domain hw1:Factor ;
+    rdfs:range hw1:EvaluationState ; rdfs:comment "Pending or Measured."@en .
+hw1:targetKind a owl:ObjectProperty ; rdfs:domain hw1:QualityFactor ; rdfs:range hw1:TargetKind .
+hw1:evaluationPhase a owl:ObjectProperty ; rdfs:domain hw1:QualityFactor ; rdfs:range hw1:EvaluationPhase .
+
+hw1:EvaluationState a rdfs:Class ; rdfs:subClassOf skos:Concept .
+hw1:Pending a hw1:EvaluationState ; skos:prefLabel "pending"@en .
+hw1:Measured a hw1:EvaluationState ; skos:prefLabel "measured"@en .
+hw1:TargetKind a rdfs:Class ; rdfs:subClassOf skos:Concept .
+hw1:DepthTarget a hw1:TargetKind ; skos:prefLabel "depth image"@en .
+hw1:DepthPairTarget a hw1:TargetKind ; skos:prefLabel "adjacent depth pair"@en .
+hw1:EvaluationPhase a rdfs:Class ; rdfs:subClassOf skos:Concept .
+hw1:BaselineReconstruction a hw1:EvaluationPhase ; skos:prefLabel "baseline reconstruction"@en .
+
+# Target/phase metadata belongs to reusable definitions, not individual
+# measurement occurrences.  This makes a Factor's links sufficient to identify
+# its image shape while keeping the occurrence result vocabulary uniform.
+hw1:RawPointCount a hw1:QualityFactor ; hw1:targetKind hw1:DepthTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:VoxelizedPointYield a hw1:QualityFactor ; hw1:targetKind hw1:DepthTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:CoarseRANSACFitness a hw1:QualityFactor ; hw1:targetKind hw1:DepthPairTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:CoarseRANSACRMSE a hw1:QualityFactor ; hw1:targetKind hw1:DepthPairTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:CoarseRANSACCorrespondences a hw1:QualityFactor ; hw1:targetKind hw1:DepthPairTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:ICPInlierFitness a hw1:QualityFactor ; hw1:targetKind hw1:DepthPairTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:ICPInlierRMSE a hw1:QualityFactor ; hw1:targetKind hw1:DepthPairTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+hw1:ICPInlierCorrespondences a hw1:QualityFactor ; hw1:targetKind hw1:DepthPairTarget ; hw1:evaluationPhase hw1:BaselineReconstruction .
+
+# Structural cardinalities are documentation/OWL hints; runtime validation is
+# deliberately stricter and checks exact membership, uniqueness and adjacency.
+hw1:hasFrame owl:minCardinality 1 ; rdfs:comment "A Batch must contain one or more Frames in a valid assessed snapshot."@en .
+hw1:hasRGBImage owl:cardinality 1 .
+hw1:hasDepthImage owl:cardinality 1 .
+hw1:inExperiment owl:cardinality 1 .
+hw1:hasDefinition owl:cardinality 1 .
+hw1:hasCurrentFrame owl:cardinality 1 .
+hw1:hasPrevious owl:cardinality 1 .
+
+# Factor occurrences are discovered through inExperiment. Single-image factors
+# point at a depth image; pair factors point at consecutive depth images.
